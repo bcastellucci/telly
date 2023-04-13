@@ -265,7 +265,7 @@ func (l *lineup) processProviderChannel(channel *providers.ProviderChannel, prog
 		l.assignedChannelNumber = l.assignedChannelNumber + 1
 	}
 
-	if channel.EPGChannel != nil && channel.EPGChannel.LCN == 0 {
+	if channel.EPGChannel != nil && channel.EPGChannel.LCN != nil {
 		channel.EPGChannel.LCN = channel.Number
 	}
 

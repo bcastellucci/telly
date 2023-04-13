@@ -160,7 +160,7 @@ func xmlTV(lineup *lineup) gin.HandlerFunc {
 		}
 	}
 
-	sort.Slice(epg.Channels, func(i, j int) bool { return epg.Channels[i].LCN < epg.Channels[j].LCN })
+	sort.Slice(epg.Channels, func(i, j) bool { return epg.Channels[i].LCN < epg.Channels[j].LCN })
 
 	return func(c *gin.Context) {
 		buf, marshallErr := xml.MarshalIndent(epg, "", "\t")

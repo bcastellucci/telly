@@ -130,7 +130,7 @@ type Channel struct {
 
 	// These fields are outside of the XMLTV spec.
 	// LCN is the local channel number. Plex will show it in place of the channel ID if it exists.
-	LCN int `xml:"lcn"                   json:"lcn,omitempty"`
+	LCN string `xml:"lcn"                   json:"lcn,omitempty"`
 }
 
 // Programme details of a single programme transmission
