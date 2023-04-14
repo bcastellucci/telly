@@ -1,0 +1,107 @@
+name: Build Docker Images
+
+env:
+  MONITORED_FILES: "go.* *.go Makefile Dockerfile*"
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+      - 'dev'
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - 'main'
+      - 'dev'
+
+jobs:
+
+  init:
+
+    runs-on: ubuntu-latest
+    name: Initialize builds
+
+    outputs:
+      changed_files: ${{ steps.changed_files.outputs.all }}
+      changed: ${{ steps.check_monitored_files.outputs.changed }}
+
+    steps:
+
+    - name: Checkout (init)
+      uses: actions/checkout@v3
+
+    - name: Get changed files
+      id: changed_files
+      uses: jitterbit/get-changed-files@v1
+
+    - name: Check monitored files for changes
+      id: check_monitored_files
+      run: |
+        changed="n"
+        for file in ${{ env.MONITORED_FILES }}; do
+          if [[ "${{ steps.changed_files.outputs.all }}" =~ $file ]]; then
+            echo "Changed file: $file";
+            changed="y";
+            break;
+          fi
+        done
+        if [[ $changed = "y" ]]; then
+          echo "changed=true" >> "$GITHUB_OUTPUT";
+        else
+          echo "No monitored files were changed (${{ env.MONITORED_FILES }})";
+        fi
+
+  build:
+
+    needs: init
+    name: Do builds
+    runs-on: ubuntu-latest
+    if: needs.init.outputs.changed == 'true'
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@v3
+      with:
+        images: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/telly
+        tags: |
+          type=schedule
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=sha
+
+    - name: Login to Docker Hub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    #- name: Build the Docker image
+    #  run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+    - name: Build and push
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: Dockerfile
+        platforms: linux/amd64,linux/aarch64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
